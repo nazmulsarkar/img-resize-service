@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
+import { ResizeModule } from '../resize/resize.module';
 import { SqsService } from './sqs.service';
 
 @Module({
+  imports: [ResizeModule],
   providers: [SqsService],
-  exports: [SqsService]
 })
 export class SqsModule { }
