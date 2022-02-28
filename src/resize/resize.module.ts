@@ -5,5 +5,6 @@ import { ResizeService } from './resize.service';
 @Module({
   imports: [StorageModule],
   providers: [ResizeService],
+  exports: [ResizeService],
 })
 export class ResizeModule { }
