@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { SQS } from 'aws-sdk';
 import { IResizeMessage } from './dto/resize-message';
 import { ResizeService } from '../resize/resize.service';
@@ -36,34 +36,38 @@ export class SqsService {
       WaitTimeSeconds: 0,
     };
 
-    this.sqs.receiveMessage(params, (err, data) => {
-      if (err) {
-        console.log(err, err.stack);
-      } else {
-        if (!data.Messages) {
-          console.log('Nothing to process');
-          return;
-        }
-        const resizeData: IResizeMessage = JSON.parse(data.Messages[0].Body);
-        console.log('Resize queue received', resizeData);
-        // Lookup order data from data storage
-
-        this.resizeService.resizeFileAndReplaceToS3(resizeData);
-        // Now we must delete the message so we don't handle it again
-        const deleteParams = {
-          QueueUrl: this.queueUrl,
-          ReceiptHandle: data.Messages[0].ReceiptHandle,
-        };
-
-        this.sqs.deleteMessage(deleteParams, (err, data) => {
-          if (err) {
-            console.log(err, err.stack);
-          } else {
-            console.log(data),
-              console.log('Successfully deleted message from queue');
+    try {
+      this.sqs.receiveMessage(params, async (err, data) => {
+        if (err) {
+          console.log(err, err.stack);
+        } else {
+          if (!data.Messages) {
+            console.log('Nothing to process');
+            return;
           }
-        });
-      }
-    });
+          const resizeData: IResizeMessage = JSON.parse(data.Messages[0].Body);
+          console.log('Resize queue received', resizeData);
+          // Lookup order data from data storage
+
+          await this.resizeService.resizeFileAndReplaceToS3(resizeData);
+          // Now we must delete the message so we don't handle it again
+          const deleteParams = {
+            QueueUrl: this.queueUrl,
+            ReceiptHandle: data.Messages[0].ReceiptHandle,
+          };
+
+          this.sqs.deleteMessage(deleteParams, (err, data) => {
+            if (err) {
+              console.log(err, err.stack);
+            } else {
+              console.log(data),
+                console.log('Successfully deleted message from queue');
+            }
+          });
+        }
+      });
+    } catch (err) {
+      throw new InternalServerErrorException(err.message)
+    }
   }
 }

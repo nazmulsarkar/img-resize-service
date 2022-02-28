@@ -24,7 +24,7 @@ export class StorageService {
     });
   }
 
-  public async getFile(key: string) {
+  public async getFile(key: string): Promise<any> {
     const params = {
       Bucket: this.bucket,
       Key: key,
